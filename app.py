@@ -393,6 +393,7 @@ def search():
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint for deployment monitoring"""
+    print("Health check endpoint accessed")  # Debug logging
     try:
         # Test database connection
         conn = get_db_connection()
@@ -400,22 +401,32 @@ def health_check():
         cursor.fetchone()
         conn.close()
         
-        return jsonify({
+        response_data = {
             'status': 'healthy',
             'message': 'Application is running correctly',
             'database': 'connected',
             'timestamp': datetime.now().isoformat()
-        }), 200
+        }
+        print(f"Health check successful: {response_data}")  # Debug logging
+        return jsonify(response_data), 200
     except Exception as e:
-        return jsonify({
+        error_data = {
             'status': 'unhealthy',
             'message': 'Database connection failed',
             'error': str(e),
             'timestamp': datetime.now().isoformat()
-        }), 503
+        }
+        print(f"Health check failed: {error_data}")  # Debug logging
+        return jsonify(error_data), 503
+
+@app.route('/healthz', methods=['GET'])
+def health_check_alt():
+    """Alternative health check endpoint"""
+    return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()}), 200
 
 @app.errorhandler(404)
 def not_found(error):
+    print(f"404 Error: {error}")  # Debug logging
     return jsonify({'error': 'Endpoint not found'}), 404
 
 @app.errorhandler(500)
@@ -423,4 +434,6 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    # Use PORT environment variable for production deployment
+    port = int(os.getenv('PORT', 8000))
+    app.run(debug=False, host='0.0.0.0', port=port)
