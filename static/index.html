@@ -467,9 +467,13 @@
                 const response = await fetch(`${API_BASE}/api/statistics`);
                 if (response.ok) {
                     const data = await response.json();
-                    document.getElementById('connectionStatus').textContent = 'Connected to Server';
-                    document.getElementById('recordCount').textContent = `${data.statistics.totalRecords || 0} records available`;
-                    document.querySelector('.status-dot').style.background = '#4ade80';
+                    const connectionStatus = document.getElementById('connectionStatus');
+                    const recordCount = document.getElementById('recordCount');
+                    const statusDot = document.querySelector('.status-dot');
+                    
+                    if (connectionStatus) connectionStatus.textContent = 'Connected to Server';
+                    if (recordCount) recordCount.textContent = `${data.statistics.totalRecords || 0} records available`;
+                    if (statusDot) statusDot.style.background = '#4ade80';
                 } else {
                     setOfflineStatus();
                 }
@@ -479,9 +483,13 @@
         }
 
         function setOfflineStatus() {
-            document.getElementById('connectionStatus').textContent = 'Server Offline';
-            document.getElementById('recordCount').textContent = 'No data';
-            document.querySelector('.status-dot').style.background = '#ef4444';
+            const connectionStatus = document.getElementById('connectionStatus');
+            const recordCount = document.getElementById('recordCount');
+            const statusDot = document.querySelector('.status-dot');
+            
+            if (connectionStatus) connectionStatus.textContent = 'Server Offline';
+            if (recordCount) recordCount.textContent = 'No data';
+            if (statusDot) statusDot.style.background = '#ef4444';
         }
 
         async function checkEligibility() {
@@ -562,7 +570,9 @@
             document.querySelectorAll('.filter-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
             
             let filteredResults = [...currentResults];
             
