@@ -2,18 +2,42 @@ from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import sqlite3
 import json
+import os
 from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-DATABASE = 'neet_pg_counselling.db'
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL')
+SQLITE_DATABASE = 'neet_pg_counselling.db'
 
 def get_db_connection():
-    """Create database connection"""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Create database connection - PostgreSQL for production, SQLite for local"""
+    if DATABASE_URL:
+        # Production: Use PostgreSQL
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn
+    else:
+        # Local development: Use SQLite
+        conn = sqlite3.connect(SQLITE_DATABASE)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+def execute_query(conn, query, params=None):
+    """Execute query with proper cursor handling for both DB types"""
+    if DATABASE_URL:
+        # PostgreSQL
+        cursor = conn.cursor()
+        cursor.execute(query, params or [])
+        return cursor
+    else:
+        # SQLite
+        cursor = conn.cursor()
+        cursor.execute(query, params or [])
+        return cursor
 
 @app.route('/')
 def index():
@@ -61,6 +85,11 @@ def index():
             <div class="endpoint">
                 <span class="method">GET</span> <code>/api/cutoffs/{college_name}</code>
                 <p>Get cutoff ranks for a specific college</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <code>/health</code>
+                <p>Health check endpoint for monitoring application status</p>
             </div>
         </div>
     </body>
@@ -361,6 +390,30 @@ def search():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for deployment monitoring"""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        cursor = execute_query(conn, "SELECT 1")
+        cursor.fetchone()
+        conn.close()
+        
+        return jsonify({
+            'status': 'healthy',
+            'message': 'Application is running correctly',
+            'database': 'connected',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'message': 'Database connection failed',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 503
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
@@ -370,4 +423,4 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8000)
