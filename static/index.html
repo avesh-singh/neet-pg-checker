@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEET PG College Eligibility Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.6s ease;
+        }
+
+        .status-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+
+        .form-field {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .secondary-btn {
+            background: #f3f4f6;
+            color: #333;
+        }
+
+        .results-section {
+            margin-top: 40px;
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .results-header h2 {
+            color: #333;
+            font-size: 1.8em;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-badge {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .stat-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 8px 20px;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-tab:hover {
+            background: #e9ecef;
+        }
+
+        .filter-tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .results-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .result-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .result-card.state-quota {
+            border-left-color: #28a745;
+        }
+
+        .college-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .course-name {
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .details {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .detail-item {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .detail-item strong {
+            color: #333;
+        }
+
+        .quota-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e9ecef;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-results h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .main-card {
+                padding: 25px;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .form-field {
+                width: 100%;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>NEET PG College Eligibility Checker</h1>
+            <p>Enter your rank to find eligible colleges based on 2024 counselling data</p>
+        </div>
+
+        <div class="main-card">
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span id="connectionStatus">Connected to Server</span>
+                </div>
+                <div id="dataStatus">
+                    <span id="recordCount">Loading...</span>
+                </div>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+
+            <div class="input-section">
+                <div class="input-group">
+                    <div class="form-field">
+                        <label for="rank">Enter Your NEET PG Rank</label>
+                        <input type="number" id="rank" placeholder="e.g., 5000" min="1" max="300000">
+                    </div>
+                    <div class="form-field">
+                        <label for="category">Category</label>
+                        <select id="category">
+                            <option value="all">All Categories</option>
+                            <option value="GENERAL">General</option>
+                            <option value="OBC">OBC</option>
+                            <option value="SC">SC</option>
+                            <option value="ST">ST</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="quota">Quota</label>
+                        <select id="quota">
+                            <option value="all">All Quotas</option>
+                            <option value="AI">All India</option>
+                            <option value="State Quota">State Quota</option>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="checkEligibility()" id="checkBtn">Check Eligibility</button>
+                        <button onclick="loadSampleData()" class="secondary-btn" id="loadBtn">Load Sample Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing eligibility...</p>
+            </div>
+
+            <div class="results-section" id="results">
+                <div class="results-header">
+                    <h2>Eligible Colleges</h2>
+                    <div class="stats">
+                        <span class="stat-badge success" id="totalColleges">0 Colleges Found</span>
+                        <span class="stat-badge" id="rankDisplay">Rank: -</span>
+                    </div>
+                </div>
+
+                <div class="filter-tabs" id="filterTabs">
+                    <div class="filter-tab active" onclick="filterResults('all')">All</div>
+                    <div class="filter-tab" onclick="filterResults('clinical')">Clinical</div>
+                    <div class="filter-tab" onclick="filterResults('non-clinical')">Non-Clinical</div>
+                    <div class="filter-tab" onclick="filterResults('surgical')">Surgical</div>
+                </div>
+
+                <div class="results-grid" id="resultsGrid">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentResults = [];
+        let activeFilter = 'all';
+        const API_BASE = window.location.origin;
+
+        // Check server connection on load
+        async function checkServerConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/api/statistics`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('connectionStatus').textContent = 'Connected to Server';
+                    document.getElementById('recordCount').textContent = `${data.statistics.totalRecords || 0} records available`;
+                    document.querySelector('.status-dot').style.background = '#4ade80';
+                } else {
+                    setOfflineStatus();
+                }
+            } catch (error) {
+                setOfflineStatus();
+            }
+        }
+
+        function setOfflineStatus() {
+            document.getElementById('connectionStatus').textContent = 'Server Offline';
+            document.getElementById('recordCount').textContent = 'No data';
+            document.querySelector('.status-dot').style.background = '#ef4444';
+        }
+
+        async function checkEligibility() {
+            const rank = parseInt(document.getElementById('rank').value);
+            const category = document.getElementById('category').value;
+            const quota = document.getElementById('quota').value;
+            
+            if (!rank || rank < 1) {
+                showError('Please enter a valid rank');
+                return;
+            }
+
+            // Hide messages
+            hideMessages();
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('checkBtn').disabled = true;
+
+            try {
+                const params = new URLSearchParams({
+                    rank: rank,
+                    category: category,
+                    quota: quota,
+                    limit: 100
+                });
+
+                const response = await fetch(`${API_BASE}/api/check-eligibility?${params}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentResults = data.colleges || [];
+                    displayResults(rank);
+                } else {
+                    showError(data.error || 'Failed to fetch results');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to connect to server. Please try again.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('checkBtn').disabled = false;
+            }
+        }
+
+        function displayResults(rank) {
+            const resultsSection = document.getElementById('results');
+            const resultsGrid = document.getElementById('resultsGrid');
+            const totalColleges = document.getElementById('totalColleges');
+            const rankDisplay = document.getElementById('rankDisplay');
+            
+            resultsSection.style.display = 'block';
+            totalColleges.textContent = `${currentResults.length} Colleges Found`;
+            rankDisplay.textContent = `Rank: ${rank}`;
+            
+            if (currentResults.length === 0) {
+                resultsGrid.innerHTML = `
+                    <div class="no-results">
+                        <h3>No Eligible Colleges Found</h3>
+                        <p>Try adjusting your filters or check colleges with higher cutoff ranks</p>
+                        <p style="margin-top: 15px;">
+                            <small>Note: If no data is loaded, click "Load Sample Data" first</small>
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            filterResults(activeFilter);
+        }
+
+        function filterResults(filter) {
+            activeFilter = filter;
+            const resultsGrid = document.getElementById('resultsGrid');
+            
+            // Update active tab
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            let filteredResults = [...currentResults];
+            
+            if (filter === 'clinical') {
+                filteredResults = currentResults.filter(r => 
+                    r.course && (
+                        r.course.toUpperCase().includes('MEDICINE') || 
+                        r.course.toUpperCase().includes('PAEDIATRICS') ||
+                        r.course.toUpperCase().includes('PSYCHIATRY')
+                    )
+                );
+            } else if (filter === 'non-clinical') {
+                filteredResults = currentResults.filter(r => 
+                    r.course && (
+                        r.course.toUpperCase().includes('PATHOLOGY') || 
+                        r.course.toUpperCase().includes('COMMUNITY') ||
+                        r.course.toUpperCase().includes('FORENSIC') ||
+                        r.course.toUpperCase().includes('PREVENTIVE') ||
+                        r.course.toUpperCase().includes('SOCIAL')
+                    )
+                );
+            } else if (filter === 'surgical') {
+                filteredResults = currentResults.filter(r => 
+                    r.course && (
+                        r.course.toUpperCase().includes('SURGERY') || 
+                        r.course.toUpperCase().includes('OPHTHALMOLOGY') ||
+                        r.course.toUpperCase().includes('GYNAE') ||
+                        r.course.toUpperCase().includes('ORTHO')
+                    )
+                );
+            }
+            
+            resultsGrid.innerHTML = filteredResults.map((result, index) => `
+                <div class="result-card ${result.quota === 'State Quota' ? 'state-quota' : ''}" 
+                     style="animation-delay: ${index * 0.05}s">
+                    <div class="college-name">${result.college || 'Unknown College'}</div>
+                    <div class="course-name">${result.course || 'Unknown Course'}</div>
+                    <div class="details">
+                        <span class="detail-item">
+                            <strong>Cutoff Rank:</strong> ${(result.cutoffRank || 0).toLocaleString()}
+                        </span>
+                        <span class="detail-item">
+                            <strong>Category:</strong> ${result.category || 'GENERAL'}
+                        </span>
+                        <span class="detail-item">
+                            <span class="quota-badge">${result.quota || 'Unknown'}</span>
+                        </span>
+                        ${result.state ? `<span class="detail-item"><strong>State:</strong> ${result.state}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadSampleData() {
+            document.getElementById('loadBtn').disabled = true;
+            hideMessages();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/load-sample-data`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(data.message || 'Sample data loaded successfully');
+                    // Refresh statistics
+                    checkServerConnection();
+                } else {
+                    showError(data.error || 'Failed to load sample data');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to connect to server');
+            } finally {
+                document.getElementById('loadBtn').disabled = false;
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => {
+                successEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        // Enter key support
+        document.getElementById('rank').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkEligibility();
+            }
+        });
+
+        // Check connection on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkServerConnection();
+        });
+    </script>
+</body>
+</html>
