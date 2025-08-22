@@ -3,8 +3,8 @@ services:
     name: neet-pg-api
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    buildCommand: pip install -r requirements.txt && python init_db.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -12,6 +12,8 @@ services:
         fromDatabase:
           name: neet-pg-db
           property: connectionString
+      - key: PORT
+        value: 10000
     autoDeploy: true
     healthCheckPath: /health
 

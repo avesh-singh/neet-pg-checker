@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import json
 import os
 from datetime import datetime
@@ -10,91 +11,96 @@ CORS(app)  # Enable CORS for all routes
 
 # Database configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
-SQLITE_DATABASE = 'neet_pg_counselling.db'
 
 def get_db_connection():
-    """Create database connection - PostgreSQL for production, SQLite for local"""
+    """Create PostgreSQL database connection"""
     if DATABASE_URL:
-        # Production: Use PostgreSQL
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
+        # Production: Use DATABASE_URL from environment (Render.com provides this)
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         return conn
     else:
-        # Local development: Use SQLite
-        conn = sqlite3.connect(SQLITE_DATABASE)
-        conn.row_factory = sqlite3.Row
+        # Local development: Use local PostgreSQL
+        conn = psycopg2.connect(
+            host='localhost',
+            database='neetpg',
+            user='avesh',
+            cursor_factory=RealDictCursor
+        )
         return conn
 
 def execute_query(conn, query, params=None):
-    """Execute query with proper cursor handling for both DB types"""
-    if DATABASE_URL:
-        # PostgreSQL
-        cursor = conn.cursor()
-        cursor.execute(query, params or [])
-        return cursor
-    else:
-        # SQLite
-        cursor = conn.cursor()
-        cursor.execute(query, params or [])
-        return cursor
+    """Execute query with PostgreSQL"""
+    # Convert ? to %s placeholders for PostgreSQL
+    pg_query = query.replace('?', '%s')
+    cursor = conn.cursor()
+    cursor.execute(pg_query, params or [])
+    return cursor
 
 @app.route('/')
 def index():
-    """Serve the main HTML page"""
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>NEET PG College Eligibility API</title>
-        <style>
-            body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
-            h1 { color: #333; }
-            .endpoint { background: #f9f9f9; padding: 15px; margin: 15px 0; border-radius: 5px; }
-            code { background: #e9e9e9; padding: 2px 5px; border-radius: 3px; }
-            .method { color: #27ae60; font-weight: bold; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>NEET PG College Eligibility API</h1>
-            <p>Welcome to the NEET PG College Eligibility API. Use the following endpoints:</p>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <code>/api/check-eligibility</code>
-                <p>Check eligible colleges based on rank</p>
-                <p>Parameters: rank (required), category (optional), quota (optional), limit (optional)</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <code>/api/colleges</code>
-                <p>Get list of all colleges</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <code>/api/courses</code>
-                <p>Get list of all courses</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <code>/api/statistics</code>
-                <p>Get database statistics</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <code>/api/cutoffs/{college_name}</code>
-                <p>Get cutoff ranks for a specific college</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <code>/health</code>
-                <p>Health check endpoint for monitoring application status</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    '''
+    """Serve the main web interface"""
+    try:
+        # Try to serve the web.html file if it exists
+        if os.path.exists('web.html'):
+            with open('web.html', 'r') as f:
+                return f.read()
+        else:
+            # Fallback to API documentation
+            return '''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>NEET PG College Eligibility API</title>
+                <style>
+                    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+                    h1 { color: #333; }
+                    .endpoint { background: #f9f9f9; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    code { background: #e9e9e9; padding: 2px 5px; border-radius: 3px; }
+                    .method { color: #27ae60; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>NEET PG College Eligibility API</h1>
+                    <p>Welcome to the NEET PG College Eligibility API. Use the following endpoints:</p>
+                    
+                    <div class="endpoint">
+                        <span class="method">GET</span> <code>/api/check-eligibility</code>
+                        <p>Check eligible colleges based on rank</p>
+                        <p>Parameters: rank (required), category (optional), quota (optional), limit (optional)</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="method">GET</span> <code>/api/colleges</code>
+                        <p>Get list of all colleges</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="method">GET</span> <code>/api/courses</code>
+                        <p>Get list of all courses</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="method">GET</span> <code>/api/statistics</code>
+                        <p>Get database statistics</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="method">GET</span> <code>/api/cutoffs/{college_name}</code>
+                        <p>Get cutoff ranks for a specific college</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="method">GET</span> <code>/health</code>
+                        <p>Health check endpoint for monitoring application status</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            '''
+    except Exception as e:
+        return f"Error loading web interface: {str(e)}", 500
 
 @app.route('/api/check-eligibility', methods=['GET'])
 def check_eligibility():
@@ -109,7 +115,6 @@ def check_eligibility():
             return jsonify({'error': 'Rank parameter is required'}), 400
         
         conn = get_db_connection()
-        cursor = conn.cursor()
         
         # Build query
         query = '''
@@ -137,13 +142,13 @@ def check_eligibility():
             params.append(quota)
         
         query += '''
-        GROUP BY college_name, course, quota, category
+        GROUP BY college_name, course, quota, category, round, year, state
         ORDER BY cutoff_rank ASC
         LIMIT ?
         '''
         params.append(limit)
         
-        cursor.execute(query, params)
+        cursor = execute_query(conn, query, params)
         results = cursor.fetchall()
         
         # Format results
@@ -178,14 +183,13 @@ def get_colleges():
     """Get list of all unique colleges"""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
         
-        cursor.execute('''
+        cursor = execute_query(conn, '''
         SELECT DISTINCT college_name, state, quota
         FROM counselling_data
         WHERE college_name IS NOT NULL
         ORDER BY college_name
-        ''')
+        ''', [])
         
         colleges = []
         for row in cursor.fetchall():
@@ -211,15 +215,14 @@ def get_courses():
     """Get list of all unique courses"""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
         
-        cursor.execute('''
+        cursor = execute_query(conn, '''
         SELECT DISTINCT course, COUNT(*) as college_count
         FROM counselling_data
         WHERE course IS NOT NULL
         GROUP BY course
         ORDER BY college_count DESC
-        ''')
+        ''', [])
         
         courses = []
         for row in cursor.fetchall():
@@ -244,41 +247,40 @@ def get_statistics():
     """Get database statistics"""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
         
         stats = {}
         
         # Total records
-        cursor.execute('SELECT COUNT(*) as count FROM counselling_data')
+        cursor = execute_query(conn, 'SELECT COUNT(*) as count FROM counselling_data', [])
         stats['totalRecords'] = cursor.fetchone()['count']
         
         # Records by quota
-        cursor.execute('''
+        cursor = execute_query(conn, '''
         SELECT quota, COUNT(*) as count
         FROM counselling_data
         GROUP BY quota
-        ''')
+        ''', [])
         stats['byQuota'] = {row['quota']: row['count'] for row in cursor.fetchall()}
         
         # Records by category
-        cursor.execute('''
+        cursor = execute_query(conn, '''
         SELECT category, COUNT(*) as count
         FROM counselling_data
         WHERE category IS NOT NULL
         GROUP BY category
-        ''')
+        ''', [])
         stats['byCategory'] = {row['category']: row['count'] for row in cursor.fetchall()}
         
         # Unique colleges
-        cursor.execute('SELECT COUNT(DISTINCT college_name) as count FROM counselling_data')
+        cursor = execute_query(conn, 'SELECT COUNT(DISTINCT college_name) as count FROM counselling_data', [])
         stats['uniqueColleges'] = cursor.fetchone()['count']
         
         # Unique courses
-        cursor.execute('SELECT COUNT(DISTINCT course) as count FROM counselling_data')
+        cursor = execute_query(conn, 'SELECT COUNT(DISTINCT course) as count FROM counselling_data', [])
         stats['uniqueCourses'] = cursor.fetchone()['count']
         
         # Rank ranges
-        cursor.execute('SELECT MIN(rank) as min_rank, MAX(rank) as max_rank FROM counselling_data')
+        cursor = execute_query(conn, 'SELECT MIN(rank) as min_rank, MAX(rank) as max_rank FROM counselling_data', [])
         row = cursor.fetchone()
         stats['rankRange'] = {
             'minimum': row['min_rank'],
@@ -300,15 +302,14 @@ def get_college_cutoffs(college_name):
     """Get cutoff ranks for a specific college"""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
         
-        cursor.execute('''
+        cursor = execute_query(conn, '''
         SELECT course, category, quota, MIN(rank) as cutoff_rank, round, year
         FROM counselling_data
         WHERE college_name = ?
         GROUP BY course, category, quota, round, year
         ORDER BY cutoff_rank ASC
-        ''', (college_name,))
+        ''', [college_name])
         
         cutoffs = []
         for row in cursor.fetchall():
@@ -346,7 +347,6 @@ def search():
             return jsonify({'error': 'Search query is required'}), 400
         
         conn = get_db_connection()
-        cursor = conn.cursor()
         
         results = {
             'colleges': [],
@@ -354,12 +354,12 @@ def search():
         }
         
         if search_type in ['all', 'college']:
-            cursor.execute('''
+            cursor = execute_query(conn, '''
             SELECT DISTINCT college_name, state, quota
             FROM counselling_data
             WHERE college_name LIKE ?
             LIMIT 20
-            ''', (f'%{query_text}%',))
+            ''', [f'%{query_text}%'])
             
             for row in cursor.fetchall():
                 results['colleges'].append({
@@ -369,12 +369,12 @@ def search():
                 })
         
         if search_type in ['all', 'course']:
-            cursor.execute('''
+            cursor = execute_query(conn, '''
             SELECT DISTINCT course
             FROM counselling_data
             WHERE course LIKE ?
             LIMIT 20
-            ''', (f'%{query_text}%',))
+            ''', [f'%{query_text}%'])
             
             for row in cursor.fetchall():
                 results['courses'].append(row['course'])
@@ -435,5 +435,5 @@ def internal_error(error):
 
 if __name__ == '__main__':
     # Use PORT environment variable for production deployment
-    port = int(os.getenv('PORT', 8000))
+    port = int(os.getenv('PORT', 8001))
     app.run(debug=False, host='0.0.0.0', port=port)
