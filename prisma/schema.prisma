@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model CounsellingData {
+  id                    Int       @id @default(autoincrement())
+  year                  Int?
+  round                 Int?
+  rank                  Int?
+  quota                 String?
+  state                 String?
+  collegeName           String?   @map("college_name")
+  course                String?
+  category              String?
+  subCategory           String?   @map("sub_category")
+  gender                String?
+  physicallyHandicapped String?   @map("physically_handicapped")
+  marksObtained         Int?      @map("marks_obtained")
+  maxMarks              Int?      @map("max_marks")
+  status                String?
+  dateOfAdmission       String?   @map("date_of_admission")
+  createdAt             DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([category], map: "idx_category")
+  @@index([collegeName], map: "idx_college_name")
+  @@index([course], map: "idx_course")
+  @@index([quota], map: "idx_quota")
+  @@index([rank], map: "idx_rank")
+  @@index([year, round], map: "idx_year_round")
+  @@map("counselling_data")
+}
+
+model ProcessedFile {
+  id            Int       @id @default(autoincrement())
+  filename      String?   @unique
+  fileType      String?   @map("file_type")
+  processedDate DateTime? @default(now()) @map("processed_date") @db.Timestamp(6)
+  recordsCount  Int?      @map("records_count")
+
+  @@map("processed_files")
+}

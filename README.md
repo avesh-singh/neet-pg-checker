@@ -1,225 +1,141 @@
 # NEET PG College Eligibility Checker
 
-A comprehensive web application to check college eligibility based on NEET PG ranks and counselling data. Built with Flask and PostgreSQL, optimized for deployment on Render.com.
+A Next.js application for checking college eligibility based on NEET PG ranks.
 
 ## Features
 
-- ✅ Check eligible colleges based on NEET PG rank
-- 🔍 Filter by category (General, OBC, SC, ST, EWS)
-- 🏥 Filter by quota (All India, State Quota, Delhi University)
-- 🔎 Search for specific colleges and courses
-- 📊 View college-wise cutoff ranks and statistics
-- 📱 Responsive web interface with modern UI
-- 🚀 RESTful API with comprehensive endpoints
-- 🐘 PostgreSQL database for reliability and performance
+- Check eligible colleges based on NEET PG rank, category, and quota
+- View college cutoffs for different courses and rounds
+- Filter results by specialty type (clinical, non-clinical, surgical)
+- Search for specific colleges or courses
+- User authentication system
+- Responsive design for all devices
 
-## Architecture
+## Tech Stack
 
-- **Backend**: Flask (Python)
+- **Frontend**: Next.js 14+, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
 - **Database**: PostgreSQL
-- **Frontend**: Vanilla HTML/CSS/JavaScript
+- **ORM**: Prisma
+- **Authentication**: NextAuth.js
 - **Deployment**: Render.com
-- **API**: RESTful with JSON responses
 
-## Quick Start
+## Getting Started
 
-### Local Development
+### Prerequisites
 
-1. **Clone and Setup**:
+- Node.js 18.x or higher
+- npm or yarn
+- PostgreSQL database
+
+### Installation
+
+1. Clone the repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/your-username/neet-pg-checker.git
 cd neet-pg-checker
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
-2. **Setup PostgreSQL Database**:
+2. Install dependencies
 ```bash
-# Make sure PostgreSQL is running
-# Create database 'neetpg' with user 'avesh'
-psql -U postgres -c "CREATE DATABASE neetpg;"
-psql -U postgres -c "CREATE USER avesh WITH PASSWORD 'your_password';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE neetpg TO avesh;"
+npm install
 ```
 
-3. **Initialize Database**:
+3. Set up environment variables
+
+Create a `.env` file in the root directory with the following variables:
+```
+# Database Configuration
+DATABASE_URL="postgresql://username:password@localhost:5432/neetpg"
+DIRECT_URL="postgresql://username:password@localhost:5432/neetpg"
+
+# NextAuth Configuration
+NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Node Environment
+NODE_ENV="development"
+```
+
+4. Generate Prisma client
 ```bash
-python init_db.py
+npm run prisma:generate
 ```
 
-4. **Run Application**:
+5. Run database migrations
 ```bash
-python app.py
+npx prisma migrate dev
 ```
 
-The application will be available at `http://localhost:8001`
-
-### Production Deployment (Render.com)
-
-1. **Push to GitHub**: Ensure your code is in a GitHub repository
-
-2. **Create Services on Render.com**:
-   - **Database**: Create a PostgreSQL database service
-   - **Web Service**: Create a web service connected to your repository
-
-3. **Configure Web Service**:
-   - **Build Command**: `pip install -r requirements.txt && python init_db.py`
-   - **Start Command**: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`
-   - **Environment Variables**: DATABASE_URL (auto-provided by Render)
-
-4. **Deploy**: Render will automatically deploy your application
-
-## API Documentation
-
-### Base URL
-- Local: `http://localhost:8001`
-- Production: `https://your-app-name.onrender.com`
-
-### Endpoints
-
-#### Health Check
-```http
-GET /health
-```
-Returns application health status and database connectivity.
-
-#### Database Statistics
-```http
-GET /api/statistics
-```
-Returns comprehensive database statistics including record counts, unique colleges/courses, and rank ranges.
-
-#### Eligibility Check
-```http
-GET /api/check-eligibility?rank=5000&category=GENERAL&quota=AI&limit=50
-```
-**Parameters**:
-- `rank` (required): NEET PG rank (integer)
-- `category` (optional): `GENERAL`, `OBC`, `SC`, `ST`, `EWS`, or `all` (default: `all`)
-- `quota` (optional): `AI`, `DU`, `State Quota`, or `all` (default: `all`)
-- `limit` (optional): Number of results (default: 100, max: 500)
-
-#### College Information
-```http
-GET /api/colleges
-GET /api/cutoffs/<college_name>
+6. Seed the database (if you have existing counselling_data.json)
+```bash
+npm run prisma:seed
 ```
 
-#### Course Information
-```http
-GET /api/courses
+7. Start the development server
+```bash
+npm run dev
 ```
 
-#### Search
-```http
-GET /api/search?q=medical&type=college
-```
-**Parameters**:
-- `q` (required): Search query
-- `type` (optional): `college`, `course`, or `all` (default: `all`)
+The application will be available at `http://localhost:3000`.
 
-## Database Schema
+## Database Migration
 
-### counselling_data Table
-```sql
-CREATE TABLE counselling_data (
-    id SERIAL PRIMARY KEY,
-    year INTEGER,
-    round INTEGER,
-    rank INTEGER,
-    quota TEXT,
-    state TEXT,
-    college_name TEXT,
-    course TEXT,
-    category TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+If you're migrating from the previous Flask application:
+
+1. Export data from the old PostgreSQL database:
+```bash
+# In your Flask application directory
+python pdf_uploader.py export
 ```
 
-### Sample Data Format
-```json
-{
-  "year": 2024,
-  "round": 1,
-  "rank": 5000,
-  "quota": "AI",
-  "state": "Delhi",
-  "college_name": "AIIMS New Delhi",
-  "course": "MD - General Medicine",
-  "category": "GENERAL"
-}
+2. Copy the `counselling_data.json` file to the root of this project.
+
+3. Run the seed script to import the data:
+```bash
+npm run prisma:seed
 ```
 
-## Development
+## Deployment
 
-### Project Structure
-```
-neet-pg-checker/
-├── app.py                 # Main Flask application
-├── init_db.py            # Database initialization script
-├── web.html              # Frontend interface
-├── requirements.txt      # Python dependencies
-├── render.yaml          # Render.com configuration
-├── Procfile             # Alternative deployment config
-├── runtime.txt          # Python version specification
-└── README.md           # This file
-```
+This project is configured for deployment on [Render.com](https://render.com).
 
-### Key Features Implementation
+### Deploying to Render
 
-1. **Database Connection**: Automatic detection of local vs production environment
-2. **Query Optimization**: Indexed database fields for fast searches
-3. **Error Handling**: Comprehensive error handling with meaningful messages
-4. **CORS Support**: Enabled for cross-origin requests
-5. **Health Monitoring**: Built-in health check endpoint for monitoring
-6. **Responsive Design**: Mobile-friendly interface
+1. Push your code to GitHub
+2. On Render, create a new Blueprint
+3. Connect to your GitHub repository
+4. Render will automatically use the `render.yaml` configuration to set up:
+   - Web service for the Next.js application
+   - PostgreSQL database
 
 ### Environment Variables
 
-- `DATABASE_URL`: PostgreSQL connection string (auto-provided by Render)
-- `PORT`: Application port (auto-provided by Render, defaults to 8001 locally)
+Make sure to set the following environment variables on Render:
 
-## Performance Considerations
+- `DATABASE_URL`: PostgreSQL connection string (provided by Render)
+- `DIRECT_URL`: Direct connection string for PostgreSQL (provided by Render)
+- `NEXTAUTH_SECRET`: Secret key for NextAuth.js
+- `NEXTAUTH_URL`: Your application URL (e.g., https://your-app.onrender.com)
+- `NODE_ENV`: Set to `production`
 
-- **Database Indexing**: Optimized indexes on frequently queried columns
-- **Connection Pooling**: Efficient database connection management
-- **Query Optimization**: Optimized SQL queries for fast response times
-- **Caching**: Browser-side caching for static assets
+## API Documentation
 
-## Security Features
+### Authentication Endpoints
 
-- **SQL Injection Protection**: Parameterized queries
-- **CORS Configuration**: Proper cross-origin resource sharing setup
-- **Error Handling**: Secure error messages without sensitive information exposure
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/[...nextauth]` - NextAuth.js endpoints for authentication
 
-## Monitoring and Debugging
+### Data Endpoints
 
-- Health check endpoint at `/health`
-- Detailed error logging
-- Database connection status monitoring
-- Performance metrics available through API
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+- `GET /api/eligibility` - Get eligible colleges based on rank
+- `GET /api/colleges` - Get list of all colleges
+- `GET /api/courses` - Get list of all courses
+- `GET /api/cutoffs/{collegeName}` - Get cutoff ranks for a specific college
+- `GET /api/search` - Search for colleges or courses
+- `GET /api/statistics` - Get database statistics
+- `GET /api/health` - Health check endpoint
 
 ## License
 
-MIT License - feel free to use this project for educational or commercial purposes.
-
-## Support
-
-For issues or questions:
-1. Check the API endpoints using the health check
-2. Verify database connectivity
-3. Review application logs
-4. Create an issue on GitHub
-
----
-
-**Note**: This application is optimized for Render.com deployment but can be deployed on any platform that supports Python and PostgreSQL.
+This project is licensed under the MIT License.
