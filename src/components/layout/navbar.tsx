@@ -25,8 +25,6 @@ export function Navbar({ user }: NavbarProps) {
 
   const navItems = [
     { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
-    { name: "Contact", href: "/contact" },
   ];
 
   return (
