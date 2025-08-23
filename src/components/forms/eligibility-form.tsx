@@ -12,6 +12,7 @@ const eligibilitySchema = z.object({
   rank: z.coerce.number().int().positive("Rank must be a positive number"),
   category: z.string().optional(),
   quota: z.string().optional(),
+  round: z.string().optional(),
   limit: z.coerce.number().int().positive().optional().default(100),
 });
 
@@ -45,6 +46,7 @@ export function EligibilityForm({ onResults }: EligibilityFormProps) {
     defaultValues: {
       category: "all",
       quota: "all",
+      round: "all",
       limit: 100,
     },
   });
@@ -58,6 +60,7 @@ export function EligibilityForm({ onResults }: EligibilityFormProps) {
         rank: data.rank.toString(),
         category: data.category || "all",
         quota: data.quota || "all",
+        round: data.round || "all",
         limit: (data.limit || 100).toString(),
       });
 
@@ -85,7 +88,7 @@ export function EligibilityForm({ onResults }: EligibilityFormProps) {
         <div className="bg-red-50 text-red-700 p-4 rounded-md">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="space-y-1">
           <label
             htmlFor="rank"
@@ -131,9 +134,26 @@ export function EligibilityForm({ onResults }: EligibilityFormProps) {
           </label>
           <Select id="quota" {...register("quota")}>
             <option value="all">All Quotas</option>
-            <option value="AI">All India (AI)</option>
-            <option value="DU">Delhi University (DU)</option>
+            <option value="All India">All India</option>
             <option value="State Quota">State Quota</option>
+            <option value="DNB Quota">DNB Quota</option>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <label
+            htmlFor="round"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Round
+          </label>
+          <Select id="round" {...register("round")}>
+            <option value="all">All Rounds</option>
+            <option value="1">Round 1</option>
+            <option value="2">Round 2</option>
+            <option value="3">Round 3</option>
+            <option value="4">Round 4</option>
+            <option value="5">Round 5</option>
           </Select>
         </div>
 

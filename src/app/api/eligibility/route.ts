@@ -6,6 +6,7 @@ const eligibilitySchema = z.object({
   rank: z.coerce.number().int().positive(),
   category: z.string().optional(),
   quota: z.string().optional(),
+  round: z.string().optional(),
   limit: z.coerce.number().int().positive().optional().default(100),
 });
 
@@ -23,12 +24,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { rank, category, quota, limit } = validationResult.data;
+    const { rank, category, quota, round, limit } = validationResult.data;
 
     const eligibleColleges = await getEligibleColleges({
       rank,
       category,
       quota,
+      round,
       limit,
     });
 

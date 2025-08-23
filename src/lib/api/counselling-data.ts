@@ -5,6 +5,7 @@ export type EligibilityFilters = {
   rank: number;
   category?: string;
   quota?: string;
+  round?: string;
   limit?: number;
 };
 
@@ -12,11 +13,12 @@ export async function getEligibleColleges({
   rank,
   category,
   quota,
+  round,
   limit = 100,
 }: EligibilityFilters) {
   try {
     const where: Prisma.CounsellingDataWhereInput = {
-      rank: { lte: rank },
+      rank: { gte: rank },
     };
 
     if (category && category !== "all") {
@@ -25,6 +27,10 @@ export async function getEligibleColleges({
 
     if (quota && quota !== "all") {
       where.quota = quota;
+    }
+
+    if (round && round !== "all") {
+      where.round = parseInt(round);
     }
 
     const results = await prisma.counsellingData.findMany({
@@ -40,7 +46,7 @@ export async function getEligibleColleges({
         state: true,
       },
       orderBy: {
-        rank: "desc",
+        rank: "asc",
       },
       take: limit,
       distinct: ["collegeName", "course", "quota", "category", "round", "year", "state"],

@@ -1,0 +1,7 @@
+pandas
+psycopg2-binary==2.9.10
+python-dotenv==1.0.0
+PyPDF2
+pdfplumber
+numpy
+

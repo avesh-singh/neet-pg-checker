@@ -12,7 +12,7 @@ model CounsellingData {
   id                    Int       @id @default(autoincrement())
   year                  Int?
   round                 Int?
-  rank                  Int?
+  rank                  BigInt?
   quota                 String?
   state                 String?
   collegeName           String?   @map("college_name")
@@ -25,6 +25,13 @@ model CounsellingData {
   maxMarks              Int?      @map("max_marks")
   status                String?
   dateOfAdmission       String?   @map("date_of_admission")
+  studentName           String?   @map("student_name")
+  dateOfBirth           String?   @map("date_of_birth")
+  examNameRoll          String?   @map("exam_name_roll")
+  pgTeacher             String?   @map("pg_teacher")
+  stipendAmount         BigInt?   @map("stipend_amount")
+  studentRegnNo         String?   @map("student_regn_no")
+  registeredCouncil     String?   @map("registered_council")
   createdAt             DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([category], map: "idx_category")
