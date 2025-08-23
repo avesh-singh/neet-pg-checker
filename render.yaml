@@ -18,20 +18,6 @@ services:
         generateValue: true
       - key: NEXTAUTH_URL
         value: https://neet-pg-checker.onrender.com
-    # Explicitly exclude ALL Python-related files and directories
-    excludePaths:
-      - scripts/
-      - *.py
-      - *.pyc
-      - __pycache__/
-      - requirements.txt
-      - setup.py
-      - pyproject.toml
-      - .DS_Store
-      - .claude/
-      - .playwright-mcp/
-      - data/
-      - *.pdf
 
 databases:
   - name: neet-pg-checker-db
