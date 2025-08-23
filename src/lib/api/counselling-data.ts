@@ -18,7 +18,12 @@ export async function getEligibleColleges({
 }: EligibilityFilters) {
   try {
     const where: Prisma.CounsellingDataWhereInput = {
+      // A candidate is eligible if their rank is better than or equal to the
+      // last admitted (cutoff) rank. With lower ranks being better,
+      // eligibility is: cutoffRank >= userRank
       rank: { gte: rank },
+      collegeName: { not: null },
+      course: { not: null },
     };
 
     if (category && category !== "all") {
@@ -56,7 +61,7 @@ export async function getEligibleColleges({
       college: result.collegeName,
       course: result.course,
       quota: result.quota,
-      cutoffRank: result.rank,
+      cutoffRank: result.rank != null ? Number(result.rank) : null,
       category: result.category || "GENERAL",
       round: result.round,
       year: result.year,
@@ -145,7 +150,7 @@ export async function getCollegeCutoffs(collegeName: string) {
       course: cutoff.course,
       category: cutoff.category || "GENERAL",
       quota: cutoff.quota,
-      cutoffRank: cutoff._min.rank,
+      cutoffRank: cutoff._min.rank != null ? Number(cutoff._min.rank) : null,
       round: cutoff.round,
       year: cutoff.year,
     }));
@@ -275,8 +280,8 @@ export async function getDatabaseStatistics() {
       },
     });
     stats.rankRange = {
-      minimum: rankRange._min.rank,
-      maximum: rankRange._max.rank,
+      minimum: rankRange._min.rank != null ? Number(rankRange._min.rank) : null,
+      maximum: rankRange._max.rank != null ? Number(rankRange._max.rank) : null,
     };
 
     return stats;
