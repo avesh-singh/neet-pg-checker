@@ -45,3 +45,20 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Python-related files and directories
+scripts/venv/
+scripts/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Development and system files
+.claude/
+.playwright-mcp/

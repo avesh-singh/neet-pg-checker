@@ -1,0 +1,53 @@
+# Python-related files and directories - EXCLUDE ALL
+scripts/
+*.py
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+requirements.txt
+setup.py
+pyproject.toml
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# Development and system files
+.DS_Store
+.claude/
+.playwright-mcp/
+.next/
+node_modules/
+
+# Data files (if not needed in production)
+data/
+*.pdf
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
