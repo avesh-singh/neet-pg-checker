@@ -34,6 +34,8 @@ model CounsellingData {
   registeredCouncil     String?   @map("registered_council")
   createdAt             DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
 
+  verificationRecords   VerificationRecord[]
+
   @@index([category], map: "idx_category")
   @@index([collegeName], map: "idx_college_name")
   @@index([course], map: "idx_course")
@@ -44,11 +46,49 @@ model CounsellingData {
 }
 
 model ProcessedFile {
-  id            Int       @id @default(autoincrement())
-  filename      String?   @unique
-  fileType      String?   @map("file_type")
-  processedDate DateTime? @default(now()) @map("processed_date") @db.Timestamp(6)
-  recordsCount  Int?      @map("records_count")
+  id                Int                 @id @default(autoincrement())
+  filename          String?             @unique
+  fileType          String?             @map("file_type")
+  processedDate     DateTime?           @default(now()) @map("processed_date") @db.Timestamp(6)
+  recordsCount      Int?                @map("records_count")
+  verificationStatus String?            @default("pending") @map("verification_status")
+  verifiedAt        DateTime?           @map("verified_at") @db.Timestamp(6)
+  verifiedBy        String?             @map("verified_by")
+  sampleSize        Int?                @map("sample_size")
+  
+  verificationRecords VerificationRecord[]
 
   @@map("processed_files")
+}
+
+model VerificationRecord {
+  id                  Int             @id @default(autoincrement())
+  counsellingDataId   Int             @map("counselling_data_id")
+  processedFileId     Int             @map("processed_file_id")
+  pageNumber          Int             @map("page_number")
+  verificationStatus  String          @default("pending") @map("verification_status")
+  verifiedAt          DateTime?       @map("verified_at") @db.Timestamp(6)
+  verifiedBy          String?         @map("verified_by")
+  notes               String?
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  counsellingData     CounsellingData @relation(fields: [counsellingDataId], references: [id], onDelete: Cascade)
+  processedFile       ProcessedFile   @relation(fields: [processedFileId], references: [id], onDelete: Cascade)
+
+  @@index([counsellingDataId])
+  @@index([processedFileId])
+  @@index([verificationStatus])
+  @@map("verification_records")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("USER")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("users")
 }

@@ -95,8 +95,38 @@ class NEETPGDataProcessor:
             filename TEXT UNIQUE,
             file_type TEXT,
             processed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            records_count INTEGER
+            records_count INTEGER,
+            verification_status TEXT DEFAULT 'pending',
+            verified_at TIMESTAMP,
+            verified_by TEXT,
+            sample_size INTEGER
         )
+        ''')
+        
+        # Table for verification records (sampling-based)
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS verification_records (
+            id SERIAL PRIMARY KEY,
+            counselling_data_id INTEGER REFERENCES counselling_data(id) ON DELETE CASCADE,
+            processed_file_id INTEGER REFERENCES processed_files(id) ON DELETE CASCADE,
+            page_number INTEGER NOT NULL,
+            verification_status TEXT DEFAULT 'pending',
+            verified_at TIMESTAMP,
+            verified_by TEXT,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        # Create indexes for verification table
+        self.cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_verification_counselling_data ON verification_records(counselling_data_id)
+        ''')
+        self.cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_verification_processed_file ON verification_records(processed_file_id)
+        ''')
+        self.cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_verification_status ON verification_records(verification_status)
         ''')
         
         self.conn.commit()
@@ -163,6 +193,7 @@ class NEETPGDataProcessor:
                             if row and len(row) >= 11:  # Ensure we have enough columns
                                 record = self.parse_state_quota_row(row)
                                 if record:
+                                    record['_page_number'] = page_num + 1  # Add page tracking
                                     yield record
     
     def parse_state_quota_row(self, row):
@@ -306,10 +337,10 @@ class NEETPGDataProcessor:
                     for table in tables:
                         if is_multi_round:
                             # Process multi-round format (Round 3 style)
-                            records = self.parse_multi_round_table(table, round_number)
+                            records = self.parse_multi_round_table(table, round_number, page_num + 1)
                         else:
                             # Process single round format (Round 4/5 style)  
-                            records = self.parse_single_round_table(table, round_number)
+                            records = self.parse_single_round_table(table, round_number, page_num + 1)
                         
                         for record in records:
                             if record:
@@ -317,7 +348,7 @@ class NEETPGDataProcessor:
                 else:
                     # Fallback to text extraction
                     text = page.extract_text()
-                    records = self.parse_all_india_text(text, round_number)
+                    records = self.parse_all_india_text(text, round_number, page_num + 1)
                     for record in records:
                         yield record
     
@@ -334,7 +365,7 @@ class NEETPGDataProcessor:
             return 4
         return 1  # Default
     
-    def parse_multi_round_table(self, table, default_round):
+    def parse_multi_round_table(self, table, default_round, page_number=1):
         """Parse multi-round format table (Round 3 style)"""
         records = []
         
@@ -365,11 +396,12 @@ class NEETPGDataProcessor:
                 if len(row) > start_col:
                     record = self.extract_round_data(row, rank, round_num, start_col, end_col)
                     if record:
+                        record['_page_number'] = page_number
                         records.append(record)
         
         return records
     
-    def parse_single_round_table(self, table, round_number):
+    def parse_single_round_table(self, table, round_number, page_number=1):
         """Parse single round format table (Round 4/5 style)"""
         records = []
         
@@ -383,6 +415,7 @@ class NEETPGDataProcessor:
             
             record = self.parse_single_round_row(row, round_number)
             if record:
+                record['_page_number'] = page_number
                 records.append(record)
         
         return records
@@ -492,7 +525,7 @@ class NEETPGDataProcessor:
             print(f"Error parsing single round row: {e}")
             return None
 
-    def parse_all_india_text(self, text, round_number=1):
+    def parse_all_india_text(self, text, round_number=1, page_number=1):
         """Parse All India quota data from text (fallback method)"""
         records = []
         lines = text.split('\n')
@@ -515,12 +548,109 @@ class NEETPGDataProcessor:
                         'college_name': match.group(3).strip(),
                         'course': match.group(4).strip(),
                         'year': 2024,
-                        'round': round_number
+                        'round': round_number,
+                        '_page_number': page_number
                     }
                     records.append(record)
                     break
         
         return records
+    
+    def insert_records_with_verification(self, records, processed_file_id, enable_verification=False, sample_rate=0.1):
+        """Insert records and optionally create verification records for sampling"""
+        batch_size = 100
+        total_inserted = 0
+        total_skipped = 0
+        verification_records = []
+        
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i + batch_size]
+            batch_inserted = 0
+            batch_skipped = 0
+            
+            for record in batch:
+                try:
+                    # Insert main record
+                    self.cursor.execute('''
+                    INSERT INTO counselling_data 
+                    (year, round, rank, quota, state, college_name, course, 
+                     category, sub_category, gender, physically_handicapped, 
+                     marks_obtained, max_marks, status, date_of_admission,
+                     student_name, date_of_birth, exam_name_roll, pg_teacher,
+                     stipend_amount, student_regn_no, registered_council)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    ''', (
+                        record.get('year', 2024),
+                        record.get('round', 1),
+                        record.get('rank'),
+                        record.get('quota'),
+                        record.get('state'),
+                        record.get('college_name'),
+                        record.get('course'),
+                        record.get('category'),
+                        record.get('sub_category'),
+                        record.get('gender'),
+                        record.get('physically_handicapped'),
+                        record.get('marks_obtained'),
+                        record.get('max_marks'),
+                        record.get('status'),
+                        record.get('date_of_admission'),
+                        record.get('student_name'),
+                        record.get('date_of_birth'),
+                        record.get('exam_name_roll'),
+                        record.get('pg_teacher'),
+                        record.get('stipend_amount'),
+                        record.get('student_regn_no'),
+                        record.get('registered_council')
+                    ))
+                    
+                    record_id = self.cursor.fetchone()[0]
+                    batch_inserted += 1
+                    
+                    # Create verification record if enabled and sampling matches
+                    if enable_verification and record.get('_page_number') and (len(verification_records) == 0 or 
+                        (batch_inserted + total_inserted) % int(1/sample_rate) == 0):
+                        verification_records.append({
+                            'counselling_data_id': record_id,
+                            'processed_file_id': processed_file_id,
+                            'page_number': record.get('_page_number')
+                        })
+                        
+                except psycopg2.IntegrityError:
+                    batch_skipped += 1
+                    continue
+            
+            # Commit batch
+            self.conn.commit()
+            total_inserted += batch_inserted
+            total_skipped += batch_skipped
+            
+            # Progress update
+            if len(records) > batch_size:
+                progress = min((i + batch_size) / len(records) * 100, 100)
+                print(f"  Progress: {progress:.1f}% - Batch: {batch_inserted} inserted, {batch_skipped} skipped")
+        
+        # Insert verification records if any
+        if verification_records and enable_verification:
+            self.insert_verification_records(verification_records)
+            print(f"  Created {len(verification_records)} verification records for sampling")
+        
+        print(f"  Total: {total_inserted} records inserted, {total_skipped} duplicates skipped")
+        return total_inserted
+    
+    def insert_verification_records(self, verification_records):
+        """Insert verification records in batch"""
+        for vr in verification_records:
+            try:
+                self.cursor.execute('''
+                INSERT INTO verification_records 
+                (counselling_data_id, processed_file_id, page_number)
+                VALUES (%s, %s, %s)
+                ''', (vr['counselling_data_id'], vr['processed_file_id'], vr['page_number']))
+            except Exception as e:
+                print(f"Error inserting verification record: {e}")
+        self.conn.commit()
     
     def insert_records(self, records):
         """Insert records into database in batches to prevent memory issues"""
@@ -585,12 +715,14 @@ class NEETPGDataProcessor:
         print(f"  Total: {total_inserted} records inserted, {total_skipped} duplicates skipped")
         return total_inserted
     
-    def process_pdf_file(self, pdf_path, file_type='state'):
+    def process_pdf_file(self, pdf_path, file_type='state', enable_verification=False, sample_rate=0.1):
         """Main method to process any PDF file
         
         Args:
             pdf_path (str): Path to the PDF file
             file_type (str): Format type - 'state' for state quota format, 'all_india' for All India quota format
+            enable_verification (bool): Whether to create verification records for sampling
+            sample_rate (float): Fraction of records to include in verification sampling (0.1 = 10%)
         """
         print(f"Processing file: {pdf_path}")
         print(f"Using format: {file_type}")
@@ -642,13 +774,51 @@ class NEETPGDataProcessor:
                 total_records += inserted_count
                 print(f"    Final batch processed: {inserted_count} records inserted")
             
-            # Log processed file
+            # Log processed file and get ID for verification records
             if total_records > 0:
                 self.cursor.execute('''
-                INSERT INTO processed_files (filename, file_type, records_count)
-                VALUES (%s, %s, %s)
-                ''', (filename, file_type, total_records))
-                self.conn.commit()
+                INSERT INTO processed_files (filename, file_type, records_count, sample_size)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                ''', (filename, file_type, total_records, int(total_records * sample_rate) if enable_verification else None))
+                processed_file_id = self.cursor.fetchone()[0]
+                
+                # If verification is enabled, process records again with verification
+                if enable_verification:
+                    print(f"Creating verification records with {sample_rate*100:.1f}% sampling rate...")
+                    # Re-process for verification records
+                    verification_count = 0
+                    if file_type == 'state':
+                        record_generator = self.process_state_quota_pdf(pdf_path)
+                    else:
+                        record_generator = self.process_all_india_pdf(pdf_path)
+                    
+                    # Collect all records first to sample properly
+                    all_records = list(record_generator)
+                    sample_indices = list(range(0, len(all_records), int(1/sample_rate)))
+                    
+                    # Get counselling_data IDs for sampled records
+                    for idx in sample_indices:
+                        if idx < len(all_records):
+                            record = all_records[idx]
+                            # Find the counselling_data record ID
+                            self.cursor.execute('''
+                            SELECT id FROM counselling_data 
+                            WHERE rank = %s AND college_name = %s AND course = %s 
+                            ORDER BY id DESC LIMIT 1
+                            ''', (record.get('rank'), record.get('college_name'), record.get('course')))
+                            
+                            result = self.cursor.fetchone()
+                            if result and record.get('_page_number'):
+                                self.cursor.execute('''
+                                INSERT INTO verification_records 
+                                (counselling_data_id, processed_file_id, page_number)
+                                VALUES (%s, %s, %s)
+                                ''', (result[0], processed_file_id, record.get('_page_number')))
+                                verification_count += 1
+                    
+                    self.conn.commit()
+                    print(f"Created {verification_count} verification records for sampling")
                 
                 print(f"Successfully processed {total_records} records from {filename}")
                 return total_records
@@ -985,6 +1155,89 @@ class NEETPGDataProcessor:
         
         print("\n=== Validation Complete ===")
     
+    def show_verification_status(self):
+        """Show verification status and pending records"""
+        print("=== Verification Status ===")
+        
+        # Check if verification tables exist
+        try:
+            self.cursor.execute('''
+            SELECT COUNT(*) FROM information_schema.tables 
+            WHERE table_name = 'verification_records'
+            ''')
+            if self.cursor.fetchone()[0] == 0:
+                print("❌ Verification tables not found. Run migrations first.")
+                return
+        except Exception as e:
+            print(f"❌ Error checking verification tables: {e}")
+            return
+        
+        # Files with verification status
+        print("\n=== Processed Files Verification Status ===")
+        self.cursor.execute('''
+        SELECT f.filename, f.records_count, f.sample_size, f.verification_status,
+               COUNT(vr.id) as verification_records,
+               COUNT(CASE WHEN vr.verification_status = 'verified' THEN 1 END) as verified_count,
+               COUNT(CASE WHEN vr.verification_status = 'rejected' THEN 1 END) as rejected_count
+        FROM processed_files f
+        LEFT JOIN verification_records vr ON f.id = vr.processed_file_id
+        GROUP BY f.id, f.filename, f.records_count, f.sample_size, f.verification_status
+        ORDER BY f.processed_date DESC
+        ''')
+        
+        file_results = self.cursor.fetchall()
+        if file_results:
+            for filename, records_count, sample_size, status, vr_count, verified, rejected in file_results:
+                print(f"\n📄 {filename}")
+                print(f"  Records: {records_count}")
+                print(f"  Sample Size: {sample_size or 'No sample'}")
+                print(f"  File Status: {status}")
+                if vr_count > 0:
+                    progress = round((verified / vr_count) * 100) if vr_count > 0 else 0
+                    print(f"  Verification: {verified}/{vr_count} verified ({progress}%), {rejected} rejected")
+                else:
+                    print("  Verification: No verification records")
+        else:
+            print("No processed files found")
+        
+        # Overall verification statistics
+        print("\n=== Overall Verification Statistics ===")
+        self.cursor.execute('''
+        SELECT verification_status, COUNT(*) FROM verification_records 
+        GROUP BY verification_status
+        ''')
+        vr_stats = self.cursor.fetchall()
+        if vr_stats:
+            for status, count in vr_stats:
+                print(f"  {status}: {count}")
+        else:
+            print("  No verification records found")
+        
+        # Pending verification records sample
+        print("\n=== Pending Verification Records (Sample) ===")
+        self.cursor.execute('''
+        SELECT vr.id, vr.page_number, cd.rank, cd.college_name, cd.course, pf.filename
+        FROM verification_records vr
+        JOIN counselling_data cd ON vr.counselling_data_id = cd.id
+        JOIN processed_files pf ON vr.processed_file_id = pf.id
+        WHERE vr.verification_status = 'pending'
+        ORDER BY vr.created_at DESC
+        LIMIT 5
+        ''')
+        
+        pending_records = self.cursor.fetchall()
+        if pending_records:
+            for vr_id, page_num, rank, college, course, filename in pending_records:
+                print(f"  ID {vr_id}: Page {page_num} in {filename}")
+                print(f"    Rank {rank}: {college[:50]}...")
+                print(f"    Course: {course[:50]}...")
+        else:
+            print("  No pending verification records")
+        
+        print("\n=== Usage ===")
+        print("To import with verification: python pdf_uploader.py import <file> <format> --verify")
+        print("To create samples for existing files: Use the web interface at /admin/verification")
+    
     def batch_import_pdfs(self, pdfs_dir, pdf_files=None):
         """Import multiple PDFs from a directory with progress tracking"""
         if pdf_files is None:
@@ -1207,6 +1460,11 @@ if __name__ == "__main__":
             processor.validate_state_data()
             processor.close()
             sys.exit(0)
+        elif command == 'verify':
+            # Show verification status and pending records
+            processor.show_verification_status()
+            processor.close()
+            sys.exit(0)
         elif command == 'batch':
             # Batch import from data/pdfs directory
             if len(sys.argv) > 2:
@@ -1228,16 +1486,35 @@ if __name__ == "__main__":
             processor.close()
             sys.exit(0)
         elif command == 'import':
-            # Import specific file: python pdf_uploader.py import <filepath> <format>
+            # Import specific file: python pdf_uploader.py import <filepath> <format> [--verify] [--sample-rate=0.1]
             if len(sys.argv) < 4:
-                print("Usage: python pdf_uploader.py import <filepath> <format>")
+                print("Usage: python pdf_uploader.py import <filepath> <format> [--verify] [--sample-rate=0.1]")
                 print("Formats: 'state' or 'all_india'")
-                print("Example: python pdf_uploader.py import data/pdfs/DOC-20240822-WA0000.pdf state")
+                print("Options:")
+                print("  --verify: Enable verification record creation with sampling")
+                print("  --sample-rate=X: Set sampling rate (default 0.1 = 10%)")
+                print("Example: python pdf_uploader.py import data/pdfs/DOC-20240822-WA0000.pdf state --verify --sample-rate=0.2")
                 processor.close()
                 sys.exit(1)
             
             file_path = sys.argv[2]
             file_format = sys.argv[3]
+            
+            # Parse optional flags
+            enable_verification = '--verify' in sys.argv
+            sample_rate = 0.1
+            for arg in sys.argv[4:]:
+                if arg.startswith('--sample-rate='):
+                    try:
+                        sample_rate = float(arg.split('=')[1])
+                        if not 0 < sample_rate <= 1:
+                            print("Sample rate must be between 0 and 1")
+                            processor.close()
+                            sys.exit(1)
+                    except ValueError:
+                        print("Invalid sample rate format")
+                        processor.close()
+                        sys.exit(1)
             
             if file_format not in ['state', 'all_india']:
                 print("Invalid format. Must be 'state' or 'all_india'")
@@ -1246,6 +1523,8 @@ if __name__ == "__main__":
             
             print(f"=== Importing: {os.path.basename(file_path)} ===")
             print(f"Format: {file_format}")
+            if enable_verification:
+                print(f"Verification: Enabled (sampling rate: {sample_rate*100:.1f}%)")
             
             if os.path.exists(file_path):
                 try:
@@ -1253,8 +1532,13 @@ if __name__ == "__main__":
                     stats_before = processor.get_statistics()
                     print(f"Records before import: {stats_before['total_records']}")
                     
-                    # Process the PDF file with explicit format
-                    total_records = processor.process_pdf_file(file_path, file_type=file_format)
+                    # Process the PDF file with explicit format and verification
+                    total_records = processor.process_pdf_file(
+                        file_path, 
+                        file_type=file_format,
+                        enable_verification=enable_verification,
+                        sample_rate=sample_rate
+                    )
                     
                     if total_records > 0:
                         print(f"✅ Successfully imported {total_records} records from {os.path.basename(file_path)}")
@@ -1328,6 +1612,7 @@ if __name__ == "__main__":
     print("  python pdf_uploader.py stats              - Show basic database statistics")
     print("  python pdf_uploader.py status             - Show detailed database status")
     print("  python pdf_uploader.py validate           - Validate state counselling data")
+    print("  python pdf_uploader.py verify             - Show verification status and pending records")
     print("  python pdf_uploader.py export             - Export data to JSON")
     print("  python pdf_uploader.py clear              - Clear database (use with caution!)")
     print("\nFormat options:")
@@ -1336,9 +1621,11 @@ if __name__ == "__main__":
     print("\nExamples:")
     print("  python pdf_uploader.py import data/pdfs/DOC-20240822-WA0000.pdf state")
     print("  python pdf_uploader.py import data/pdfs/round_3.pdf all_india")
+    print("  python pdf_uploader.py import data/pdfs/DOC-20240822-WA0000.pdf state --verify --sample-rate=0.2")
     print("  python pdf_uploader.py batch                     # Import all PDFs from data/pdfs/")
     print("  python pdf_uploader.py status                    # Detailed analysis with samples")
     print("  python pdf_uploader.py validate                  # Check state data quality")
+    print("  python pdf_uploader.py verify                    # Check verification status")
     print("\nDatabase Configuration:")
     print(f"  Host: {processor.db_config['host']}")
     print(f"  Database: {processor.db_config['database']}")

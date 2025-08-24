@@ -89,10 +89,10 @@ export const authConfig: NextAuthConfig = {
         }
 
         return {
-          id: user.id,
+          id: user.id.toString(),
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: user.role as "ADMIN" | "USER",
         };
       },
     }),
